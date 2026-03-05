@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JavaTech Race Box PRO V7</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#0b0b0b;
+color:white;
+text-align:center;
+margin:0;
+padding:10px;
+}
+
+h1{
+color:#00ff95;
+margin-bottom:10px;
+}
+
+.container{
+max-width:420px;
+margin:auto;
+}
+
+.card{
+background:#1a1a1a;
+border-radius:14px;
+padding:15px;
+margin-bottom:12px;
+}
+
+.timer{
+font-size:48px;
+color:#00ff95;
+font-weight:bold;
+}
+
+.speed{
+font-size:28px;
+margin-top:5px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+margin-top:10px;
+}
+
+.data{
+background:#111;
+padding:10px;
+border-radius:8px;
+}
+
+.label{
+font-size:12px;
+color:#aaa;
+}
+
+.value{
+font-size:18px;
+margin-top:3px;
+}
+
+.buttons{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+margin-top:10px;
+}
+
+button{
+padding:12px;
+border:none;
+border-radius:10px;
+font-size:16px;
+color:white;
+}
+
+.start{background:#00c853;}
+.reset{background:#2962ff;}
+.save{background:#ff9800;}
+.history{background:#9c27b0;}
+
+#history{
+margin-top:15px;
+text-align:left;
+font-size:14px;
+}
+
+.item{
+background:#151515;
+padding:10px;
+border-radius:10px;
+margin-bottom:8px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>JavaTech Race Box PRO</h1>
+
+<div class="container">
+
+<div class="card">
+<div class="timer" id="timer">0.000</div>
+<div class="speed"><span id="speed">0</span> km/h</div>
+</div>
+
+<div class="card">
+
+<div class="grid">
+
+<div class="data">
+<div class="label">Distance</div>
+<div class="value"><span id="distance">0</span> m</div>
+</div>
+
+<div class="data">
+<div class="label">Top Speed</div>
+<div class="value"><span id="topspeed">0</span></div>
+</div>
+
+<div class="data">
+<div class="label">0-60</div>
+<div class="value" id="t60">-</div>
+</div>
+
+<div class="data">
+<div class="label">0-100</div>
+<div class="value" id="t100">-</div>
+</div>
+
+<div class="data">
+<div class="label">60m</div>
+<div class="value" id="d60">-</div>
+</div>
+
+<div class="data">
+<div class="label">201m</div>
+<div class="value" id="d201">-</div>
+</div>
+
+<div class="data">
+<div class="label">401m</div>
+<div class="value" id="d401">-</div>
+</div>
+
+<div class="data">
+<div class="label">402m</div>
+<div class="value" id="d402">-</div>
+</div>
+
+<div class="data">
+<div class="label">501m</div>
+<div class="value" id="d501">-</div>
+</div>
+
+</div>
+</div>
+
+<div class="buttons">
+<button class="start" onclick="startRace()">START</button>
+<button class="reset" onclick="resetRace()">RESET</button>
+<button class="save" onclick="saveRace()">SAVE</button>
+<button class="history" onclick="showHistory()">HISTORY</button>
+</div>
+
+<div id="history"></div>
+
+</div>
+
+<script>
+
+let watchID
+let running=false
+let startTime=null
+
+let lastLat=null
+let lastLon=null
+
+let distance=0
+let topSpeed=0
+
+let t60=false
+let t100=false
+
+let d60=false
+let d201=false
+let d401=false
+let d402=false
+let d501=false
+
+function gpsDistance(lat1,lon1,lat2,lon2){
+
+let R=6371000
+let dLat=(lat2-lat1)*Math.PI/180
+let dLon=(lon2-lon1)*Math.PI/180
+
+let a=Math.sin(dLat/2)*Math.sin(dLat/2)+
+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+Math.sin(dLon/2)*Math.sin(dLon/2)
+
+let c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))
+
+return R*c
+}
+
+function startRace(){
+
+if(!navigator.geolocation){
+alert("Browser tidak mendukung GPS")
+return
+}
+
+alert("GPS aktif, mulai bergerak")
+
+watchID=navigator.geolocation.watchPosition(
+
+pos=>{
+
+if(pos.coords.accuracy>20)return
+
+let lat=pos.coords.latitude
+let lon=pos.coords.longitude
+
+let speed=(pos.coords.speed||0)*3.6
+
+// anti GPS drift
+if(speed<3){
+speed=0
+}
+
+document.getElementById("speed").innerHTML=speed.toFixed(1)
+
+if(speed>topSpeed && speed>5){
+topSpeed=speed
+document.getElementById("topspeed").innerHTML=topSpeed.toFixed(1)
+}
+
+if(lastLat){
+
+let dist=gpsDistance(lastLat,lastLon,lat,lon)
+
+distance+=dist
+
+document.getElementById("distance").innerHTML=distance.toFixed(1)
+
+}
+
+lastLat=lat
+lastLon=lon
+
+if(speed>5 && !running){
+running=true
+startTime=Date.now()
+}
+
+if(running){
+
+let t=((Date.now()-startTime)/1000)
+
+document.getElementById("timer").innerHTML=t.toFixed(3)
+
+if(speed>=60 && !t60){
+t60=true
+document.getElementById("t60").innerHTML=t.toFixed(3)+" s"
+}
+
+if(speed>=100 && !t100){
+t100=true
+document.getElementById("t100").innerHTML=t.toFixed(3)+" s"
+}
+
+if(distance>=60 && !d60){
+d60=true
+document.getElementById("d60").innerHTML=t.toFixed(3)+" s"
+}
+
+if(distance>=201 && !d201){
+d201=true
+document.getElementById("d201").innerHTML=t.toFixed(3)+" s"
+}
+
+if(distance>=401 && !d401){
+d401=true
+document.getElementById("d401").innerHTML=t.toFixed(3)+" s"
+}
+
+if(distance>=402 && !d402){
+d402=true
+document.getElementById("d402").innerHTML=t.toFixed(3)+" s"
+}
+
+if(distance>=501 && !d501){
+
+d501=true
+
+navigator.geolocation.clearWatch(watchID)
+
+document.getElementById("d501").innerHTML=t.toFixed(3)+" s"
+
+}
+
+}
+
+},
+
+error=>{
+alert("GPS error: "+error.message)
+},
+
+{
+enableHighAccuracy:true,
+maximumAge:0,
+timeout:10000
+}
+
+)
+
+}
+
+function resetRace(){
+
+navigator.geolocation.clearWatch(watchID)
+
+running=false
+startTime=null
+
+lastLat=null
+lastLon=null
+
+distance=0
+topSpeed=0
+
+t60=false
+t100=false
+d60=false
+d201=false
+d401=false
+d402=false
+d501=false
+
+document.getElementById("timer").innerHTML="0.000"
+document.getElementById("speed").innerHTML="0"
+document.getElementById("distance").innerHTML="0"
+document.getElementById("topspeed").innerHTML="0"
+
+document.getElementById("t60").innerHTML="-"
+document.getElementById("t100").innerHTML="-"
+
+document.getElementById("d60").innerHTML="-"
+document.getElementById("d201").innerHTML="-"
+document.getElementById("d401").innerHTML="-"
+document.getElementById("d402").innerHTML="-"
+document.getElementById("d501").innerHTML="-"
+
+document.getElementById("history").innerHTML=""
+
+}
+
+function saveRace(){
+
+if(!d402){
+alert("Race belum selesai")
+return
+}
+
+let data={
+date:new Date().toLocaleString(),
+t60:document.getElementById("t60").innerText,
+t100:document.getElementById("t100").innerText,
+d402:document.getElementById("d402").innerText,
+topspeed:document.getElementById("topspeed").innerText
+}
+
+let history=JSON.parse(localStorage.getItem("raceHistory"))||[]
+
+history.unshift(data)
+
+localStorage.setItem("raceHistory",JSON.stringify(history))
+
+alert("Race disimpan")
+
+}
+
+function showHistory(){
+
+let history=JSON.parse(localStorage.getItem("raceHistory"))||[]
+
+let html="<h3>Race History</h3>"
+
+history.forEach(r=>{
+
+html+=`
+<div class="item">
+${r.date}<br>
+0-60 : ${r.t60}<br>
+0-100 : ${r.t100}<br>
+402m : ${r.d402}<br>
+Top Speed : ${r.topspeed} km/h
+</div>
+`
+
+})
+
+document.getElementById("history").innerHTML=html
+
+}
+
+</script>
+
+</body>
+</html>
